@@ -1,5 +1,5 @@
-`timescale 1ns/100ps
-`define CYCLE       10.0     // CLK period, modify by yourself
+`timescale 1ns/1ps
+`define CYCLE       22.0     // CLK period, modify by yourself
 `define HCYCLE      (`CYCLE/2)
 `define MAX_CYCLE   1_000_000
 `define RST_DELAY   2
@@ -83,9 +83,11 @@ module testbed;
 		integer	debug	=0;
 	`endif
 
+	reg warning;
+
 	real	D0, D1;
     // Ch2, Instantiation
-	ml_demodulator MLD (
+	ml_demodulator u_ml_demodulator (
 		.i_clk		(i_clk),
 		.i_reset	(i_reset),
 		.i_trig		(i_trig),
@@ -150,8 +152,11 @@ end
 
 	// For gate-level simulation only
 	`ifdef SDF
-		initial $sdf_annotate(`SDFFILE, ml_demodulator);
+		initial $sdf_annotate(`SDFFILE, u_ml_demodulator);
 		initial #1 $display("SDF File %s were used for this simulation.", `SDFFILE);
+		initial warning = 0;
+	`else
+		initial warning = 1;
 	`endif
 
     // Ch4, Flush op_mode then Feed pattern into reg
@@ -241,18 +246,20 @@ end
 								output_pter, o_llr, LLR_mem[output_pter]);
 						$write("%c[0m",27);
 					end
-					if ( o_llr !== LLR_mem[output_pter] ) begin
-						$write("%c[1;31m",27);
-						if (debug) begin
-							D0		= $signed( o_llr );
-							D1		= $signed( LLR_mem[output_pter] );
-							$display("Warning: at LLR [#%d] your LLR=%f, golden=%f",
-								output_pter, D0/(2**4), D1/(2**4));
-						end else begin
-							$display("Warning: at LLR [#%d] your LLR=%h, golden=%h", 
-								output_pter, o_llr, LLR_mem[output_pter]);
+					if(warning) begin
+						if ( o_llr !== LLR_mem[output_pter] ) begin
+							$write("%c[1;31m",27);
+							if (debug) begin
+								D0		= $signed( o_llr );
+								D1		= $signed( LLR_mem[output_pter] );
+								$display("Warning: at LLR [#%d] your LLR=%f, golden=%f",
+									output_pter, D0/(2**4), D1/(2**4));
+							end else begin
+								$display("Warning: at LLR [#%d] your LLR=%h, golden=%h", 
+									output_pter, o_llr, LLR_mem[output_pter]);
+							end
+							$write("%c[0m",27);
 						end
-						$write("%c[0m",27);
 					end
 					output_pter		= output_pter + 1;
 					Has_Accept		= Has_Accept + 1;
@@ -288,18 +295,20 @@ end
 								o_llr, LLR_mem[output_pter], o_llr[7]);
 						$write("%c[0m",27);
 					end
-					if ( o_llr !== LLR_mem[output_pter] ) begin
-						$write("%c[1;31m",27);
-						if (debug) begin
-							D0		= $signed( o_llr );
-							D1		= $signed( LLR_mem[output_pter] );
-							$display("Warning: at LLR [#%d] your LLR=%f, golden=%f",
-								output_pter, D0/(2**4), D1/(2**4));
-						end else begin
-							$display("Warning: at LLR [#%d] your LLR=%h, golden=%h", 
-								output_pter, o_llr, LLR_mem[output_pter]);
+					if(warning) begin
+						if ( o_llr !== LLR_mem[output_pter] ) begin
+							$write("%c[1;31m",27);
+							if (debug) begin
+								D0		= $signed( o_llr );
+								D1		= $signed( LLR_mem[output_pter] );
+								$display("Warning: at LLR [#%d] your LLR=%f, golden=%f",
+									output_pter, D0/(2**4), D1/(2**4));
+							end else begin
+								$display("Warning: at LLR [#%d] your LLR=%h, golden=%h", 
+									output_pter, o_llr, LLR_mem[output_pter]);
+							end
+							$write("%c[0m",27);
 						end
-						$write("%c[0m",27);
 					end
 					output_pter		= output_pter + 1;
 					Has_Accept		= Has_Accept + 1;

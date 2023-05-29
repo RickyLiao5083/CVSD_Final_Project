@@ -7,7 +7,7 @@ set compile_fix_multiple_port_nets "TRUE"
 
 set DESIGN "ml_demodulator"
 set CLOCK "i_clk"
-set CLOCK_PERIOD 10.0
+set CLOCK_PERIOD 22.0
 
 sh rm -rf Netlist
 sh rm -rf Report
@@ -59,3 +59,8 @@ define_name_rules name_rule -case_insensitive
 write -format verilog -hierarchy -output Netlist/$DESIGN\_syn.v
 write_sdf -version 2.1 -context verilog Netlist/$DESIGN\_syn.sdf
 write_sdc Netlist/$DESIGN\_syn.sdc
+
+check_design
+report_timing
+report_area
+exit

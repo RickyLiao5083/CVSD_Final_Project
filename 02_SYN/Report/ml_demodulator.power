@@ -1,0 +1,62 @@
+Loading db file '/home/raid7_2/course/cvsd/CBDK_IC_Contest/CIC/SynopsysDC/db/slow.db'
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+Warning: Design has unannotated primary inputs. (PWR-414)
+Warning: Design has unannotated sequential cell outputs. (PWR-415)
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : ml_demodulator
+Version: U-2022.12
+Date   : Mon May 29 20:29:43 2023
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /home/raid7_2/course/cvsd/CBDK_IC_Contest/CIC/SynopsysDC/db/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+Design        Wire Load Model            Library
+------------------------------------------------
+ml_demodulator         tsmc13_wl10       slow
+
+
+Global Operating Voltage = 1.08 
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+Attributes
+----------
+i - Including register clock pin internal power
+
+
+  Cell Internal Power  =   3.7190 mW   (46%)
+  Net Switching Power  =   4.3005 mW   (54%)
+                         ---------
+Total Dynamic Power    =   8.0195 mW  (100%)
+
+Cell Leakage Power     = 686.4871 uW
+
+
+                 Internal         Switching           Leakage            Total
+Power Group      Power            Power               Power              Power   (   %    )  Attrs
+--------------------------------------------------------------------------------------------------
+io_pad             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
+clock_network      0.9533            0.2368        1.2742e+07            1.2029  (  13.82%)  i
+register       6.8862e-02        7.9768e-02        7.2553e+07            0.2212  (   2.54%)
+sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
+combinational      2.6968            3.9839        6.0119e+08            7.2819  (  83.64%)
+--------------------------------------------------------------------------------------------------
+Total              3.7190 mW         4.3005 mW     6.8649e+08 pW         8.7060 mW
+1
