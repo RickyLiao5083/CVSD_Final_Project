@@ -123,38 +123,31 @@ module testbed;
     end
 
 	initial begin
-    `ifdef tb1
-        $fsdbDumpfile("ml_demodulator_p1.fsdb");
-        $fsdbDumpvars(0, "+mda");
-        $fsdbDumpvars;
-    `elsif tb2
-        $fsdbDumpfile("ml_demodulator_p2.fsdb");
-        $fsdbDumpvars(0, "+mda");
-        $fsdbDumpvars;
-    `elsif tb3
-        $fsdbDumpfile("ml_demodulator_p3.fsdb");
-        $fsdbDumpvars(0, "+mda");
-        $fsdbDumpvars;
-    `elsif tb4
-        $fsdbDumpfile("ml_demodulator_p4.fsdb");
-        $fsdbDumpvars(0, "+mda");
-        $fsdbDumpvars;
-    `elsif tb5
-        $fsdbDumpfile("ml_demodulator_p5.fsdb");
-        $fsdbDumpvars(0, "+mda");
-        $fsdbDumpvars;
-    `else
-        $fsdbDumpfile("ml_demodulator_p6.fsdb");
-        $fsdbDumpvars(0, "+mda");
-        $fsdbDumpvars;
-    `endif
-end
+		`ifndef SDF
+			`ifdef tb1
+				$fsdbDumpfile("ml_demodulator_p1.fsdb");
+			`elsif tb2
+				$fsdbDumpfile("ml_demodulator_p2.fsdb");
+			`elsif tb3
+				$fsdbDumpfile("ml_demodulator_p3.fsdb");
+			`elsif tb4
+				$fsdbDumpfile("ml_demodulator_p4.fsdb");
+			`elsif tb5
+				$fsdbDumpfile("ml_demodulator_p5.fsdb");
+			`else
+				$fsdbDumpfile("ml_demodulator_p6.fsdb");
+			`endif
+			$fsdbDumpvars(0, "+mda");
+			$fsdbDumpvars;
+		`endif
+	end
 
 	// For gate-level simulation only
 	`ifdef SDF
 		initial $sdf_annotate(`SDFFILE, u_ml_demodulator);
 		initial #1 $display("SDF File %s were used for this simulation.", `SDFFILE);
-		initial warning = 0;
+		//initial warning = 0;
+		initial warning = 1;
 	`else
 		initial warning = 1;
 	`endif
