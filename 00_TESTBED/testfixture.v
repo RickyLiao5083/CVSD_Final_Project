@@ -52,7 +52,7 @@
 `ifdef GSIM
 	`define SDFFILE "ml_demodulator_syn.sdf"  // Modify your sdf file name
 `elsif POST
-	`define SDFFILE "ml_demodulator_apr.sdf"  // Modify your sdf file name
+	`define SDFFILE "ml_demodulator_pr.sdf"  // Modify your sdf file name
 `endif
 
 module testbed;
