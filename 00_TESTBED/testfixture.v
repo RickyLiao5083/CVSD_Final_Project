@@ -106,19 +106,20 @@ module testbed;
     // Write out wavgform file
     initial begin
 		`ifdef VCD
-			$dumpfile("ml_demol.vcd");
+			$dumpfile("ml_demodulator.vcd");
 			$dumpvars;
 		`endif
         `ifdef FSDB
             `ifdef SYN
-                $fsdbDumpfile("ml_demol_syn.fsdb");
+                $fsdbDumpfile("ml_demodulator_syn.fsdb");
             `elsif APR
-                $fsdbDumpfile("ml_demol_apr.fsdb");
+                $fsdbDumpfile("ml_demodulator.fsdb");
             `else
-                $fsdbDumpfile("ml_demol.fsdb");
+                $fsdbDumpfile("ml_demodulator.fsdb");
             `endif
-            $fsdbDumpvars(0, "+mda");
+            //$fsdbDumpvars(0, "+mda");
             $fsdbDumpvars;
+			$fsdbDumpMDA;
         `endif
     end
 
