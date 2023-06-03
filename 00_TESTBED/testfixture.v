@@ -226,28 +226,41 @@ module testbed;
 				i_rd_rdy	= 1'b1;
 				if ( o_rd_vld ) begin
 					if ( o_hard_bit !== HardBit_mem[output_pter] ) begin
-						error	= error + 1;
+						error	 = err_flag ? error : (error + 1);
+						err_flag = 1;
 						$write("%c[7;31m",27);
 						$display("ERROR: at HB [#%d] your Hard Bit=%b, golden=%b", 
 								output_pter, o_hard_bit, HardBit_mem[output_pter]);
 						$display("In the meanwhile, your LLR=%h, golden=%h",
 								o_llr, LLR_mem[output_pter]);
 						$write("%c[0m",27);
-					end else if ( o_llr == 0 ) begin
-						error	= error + 1;
+					end else if ( o_llr === 0 ) begin
+						error	 = err_flag ? error : (error + 1);
+						err_flag = 1;
 						$write("%c[7;31m",27);
-						$display("ERROR: at LLR [#%d] your LLR is zero", 
-								output_pter, o_llr, LLR_mem[output_pter]);
+						$display("ERROR: at LLR [#%d] your LLR is zero, golden=%h", 
+								output_pter, LLR_mem[output_pter]);
+						$write("%c[0m",27);
+					end else if ( o_llr[7] !== o_hard_bit ) begin
+						error	 = err_flag ? error : (error + 1);
+						err_flag = 1;
+						$write("%c[7;31m",27);
+						$display("ERROR: at HB [#%d] your Hard Bit=%b, golden=%b", 
+								output_pter, o_hard_bit, HardBit_mem[output_pter]);
+						$display("In the meanwhile, your LLR=%h, golden=%h, but your HB != LLR[7]=%b",
+								o_llr, LLR_mem[output_pter], o_llr[7]);
 						$write("%c[0m",27);
 					end
 					if(warning) begin
 						if ( o_llr !== LLR_mem[output_pter] ) begin
 							$write("%c[1;31m",27);
 							if (debug) begin
+								/*
 								D0		= $signed( o_llr );
 								D1		= $signed( LLR_mem[output_pter] );
 								$display("Warning: at LLR [#%d] your LLR=%f, golden=%f",
 									output_pter, D0/(2**4), D1/(2**4));
+								*/
 							end else begin
 								$display("Warning: at LLR [#%d] your LLR=%h, golden=%h", 
 									output_pter, o_llr, LLR_mem[output_pter]);
@@ -293,10 +306,12 @@ module testbed;
 						if ( o_llr !== LLR_mem[output_pter] ) begin
 							$write("%c[1;31m",27);
 							if (debug) begin
+								/*
 								D0		= $signed( o_llr );
 								D1		= $signed( LLR_mem[output_pter] );
 								$display("Warning: at LLR [#%d] your LLR=%f, golden=%f",
 									output_pter, D0/(2**4), D1/(2**4));
+								*/
 							end else begin
 								$display("Warning: at LLR [#%d] your LLR=%h, golden=%h", 
 									output_pter, o_llr, LLR_mem[output_pter]);
@@ -306,16 +321,17 @@ module testbed;
 					end
 					output_pter		= output_pter + 1;
 					Has_Accept		= Has_Accept + 1;
-					if(count1RE < 8) begin
-						count1RE = count1RE + 1;
-					end
-					else begin
-						count1RE = 0;
-						err_flag = 0;
-					end
 				end
 			end else begin
 				i_rd_rdy	= 1'b0;
+			end
+
+			if(count1RE < 8) begin
+				count1RE = count1RE + 1;
+			end
+			else begin
+				count1RE = 0;
+				err_flag = 0;
 			end
 			
 			// T_cycle + 1
