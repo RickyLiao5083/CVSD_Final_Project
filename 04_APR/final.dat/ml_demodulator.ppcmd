@@ -21,12 +21,12 @@
 # 0 
 # 2 
 # BOX_LIST 
-# 75800 80120 2226640 2230540 0 
-# 80280 84600 2222160 2226060 0 
+# 75800 80120 2246880 2237920 0 
+# 80280 84600 2242400 2233440 0 
 # END_BOX_LIST 
 # NET_INFO_LIST 
-# VSS 4000 5 0 205200 2145940 160000 0 0 
-# VDD 4000 5 0 200720 2145940 160000 0 0 
+# VSS 4000 5 0 205200 2153320 160000 0 0 
+# VDD 4000 5 0 200720 2153320 160000 0 0 
 # END_NET_INFO_LIST 
 # END_PPCMD 2 
 
@@ -53,12 +53,12 @@
 # 0 
 # 2 
 # BOX_LIST 
-# 75800 76120 2226640 2226540 0 
-# 80280 80600 2222160 2222060 0 
+# 75800 76120 2246880 2233920 0 
+# 80280 80600 2242400 2229440 0 
 # END_BOX_LIST 
 # NET_INFO_LIST 
-# VSS 4000 4 0 364560 2146360 200000 0 0 
-# VDD 4000 4 0 360080 2146360 200000 0 0 
+# VSS 4000 4 0 364560 2166600 200000 0 0 
+# VDD 4000 4 0 360080 2166600 200000 0 0 
 # END_NET_INFO_LIST 
 # END_PPCMD 4 
 
@@ -91,7 +91,7 @@
 # END_PPCMD 6 
 
 # PPCMD 7 
-# addRing -nets {VDD VSS} -type core_rings -follow core -layer {top METAL3 bottom METAL3 left METAL2 right METAL2} -width {top 2 bottom 2 left 2 right 2} -spacing {top 0.24 bottom 0.24 left 0.24 right 0.24} -offset {top 1.8 bottom 1.8 left 1.8 right 1.8} -center 1 -extend_corner {} -threshold 0 -jog_distance 0 -snap_wire_center_to_grid None -use_wire_group 1 -use_wire_group_bits 1 -use_interleaving_wire_group 1
+# addRing -nets {VDD VSS} -type core_rings -follow core -layer {top METAL3 bottom METAL3 left METAL2 right METAL2} -width {top 2 bottom 2 left 2 right 2} -spacing {top 0.24 bottom 0.24 left 0.24 right 0.24} -offset {top 1.8 bottom 1.8 left 1.8 right 1.8} -center 1 -extend_corner {} -threshold 0 -jog_distance 0 -snap_wire_center_to_grid None
 # 2 
 # 32 
 # 1 
@@ -103,19 +103,19 @@
 # NET_INFO_LIST 
 # VSS 4000 3 1 0 0 0 0 0 
 # RING_PT_INFO_LIST 
-# 1153220 78120 1153220 2228540 
+# 1163340 78120 1163340 2235920 
 # END_RING_PT_INFO_LIST 
 # VSS 4000 2 1 0 0 0 0 0 
 # RING_PT_INFO_LIST 
-# 77800 1153330 2228640 1153330 
+# 77800 1157020 2248880 1157020 
 # END_RING_PT_INFO_LIST 
 # VDD 4000 3 1 0 0 0 0 0 
 # RING_PT_INFO_LIST 
-# 1153220 82600 1153220 2224060 
+# 1163340 82600 1163340 2231440 
 # END_RING_PT_INFO_LIST 
 # VDD 4000 2 1 0 0 0 0 0 
 # RING_PT_INFO_LIST 
-# 82280 1153330 2224160 1153330 
+# 82280 1157020 2244400 1157020 
 # END_RING_PT_INFO_LIST 
 # END_NET_INFO_LIST 
 # END_PPCMD 7 
