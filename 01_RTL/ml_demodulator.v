@@ -873,14 +873,14 @@ module ml_demodulator(
             end
             for (i=0; i<16 ; i=i+1 ) begin
                 if ( EN_LLR_pool[i] ) begin // 假如 EN_LLR_pool[5]=1，則更新 5,3'd0~5,3'd7 
-                    LLR_pool[ { i, 3'd0} ]   <= XKB_n[0][0];
-                    LLR_pool[ { i, 3'd1} ]   <= XKB_n[0][1];
-                    LLR_pool[ { i, 3'd2} ]   <= XKB_n[1][0];
-                    LLR_pool[ { i, 3'd3} ]   <= XKB_n[1][1];
-                    LLR_pool[ { i, 3'd4} ]   <= XKB_n[2][0];
-                    LLR_pool[ { i, 3'd5} ]   <= XKB_n[2][1];
-                    LLR_pool[ { i, 3'd6} ]   <= XKB_n[3][0];
-                    LLR_pool[ { i, 3'd7} ]   <= XKB_n[3][1];
+                    LLR_pool[ { i, 3'd0} ]   <= (XKB_n[0][0] == 0) ? (XKB_n[0][0] + 1) : XKB_n[0][0];
+                    LLR_pool[ { i, 3'd1} ]   <= (XKB_n[0][1] == 0) ? (XKB_n[0][1] + 1) : XKB_n[0][1];
+                    LLR_pool[ { i, 3'd2} ]   <= (XKB_n[1][0] == 0) ? (XKB_n[1][0] + 1) : XKB_n[1][0];
+                    LLR_pool[ { i, 3'd3} ]   <= (XKB_n[1][1] == 0) ? (XKB_n[1][1] + 1) : XKB_n[1][1];
+                    LLR_pool[ { i, 3'd4} ]   <= (XKB_n[2][0] == 0) ? (XKB_n[2][0] + 1) : XKB_n[2][0];
+                    LLR_pool[ { i, 3'd5} ]   <= (XKB_n[2][1] == 0) ? (XKB_n[2][1] + 1) : XKB_n[2][1];
+                    LLR_pool[ { i, 3'd6} ]   <= (XKB_n[3][0] == 0) ? (XKB_n[3][0] + 1) : XKB_n[3][0];
+                    LLR_pool[ { i, 3'd7} ]   <= (XKB_n[3][1] == 0) ? (XKB_n[3][1] + 1) : XKB_n[3][1];
                 end
             end
             if (EN_write_pter)  write_pter  <= write_pter + 1;
