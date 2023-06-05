@@ -7,7 +7,7 @@ set compile_fix_multiple_port_nets "TRUE"
 
 set DESIGN "ml_demodulator"
 set CLOCK "i_clk"
-set CLOCK_PERIOD 20.0
+set CLOCK_PERIOD 22.0
 
 sh rm -rf Netlist
 sh rm -rf Report
