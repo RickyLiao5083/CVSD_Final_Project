@@ -9,21 +9,6 @@ module ml_demodulator(
     output [7:0]    o_llr,
     output          o_hard_bit
 );
-`ifdef debug
-    integer debug       = 1;
-`else
-    integer debug       = 0;
-`endif
-`ifdef debug2
-    integer debug2       = 1;
-`else
-    integer debug2       = 0;
-`endif
-`ifdef debug3
-    integer debug3       = 1;
-`else
-    integer debug3       = 0;
-`endif
 
     // Inner use
     reg        [6:0]    Ccnt;            // 6bit表示64cyc。最高 bit 表有無接觸過 input
@@ -42,39 +27,44 @@ module ml_demodulator(
     reg signed [19:0]   r_44;
     reg signed [19:0]   y[3:0][1:0];
 
-    reg signed [25:0]   xkb[3:0][1:0][1:0];     // xkb0, xkb1 (S15.10)
-    reg signed [25:0]   xkb_n[3:0][1:0][1:0];   // xkb0, xkb1 (S15.10)
+    reg signed [26:0]   xkb[3:0][1:0][1:0];     // xkb0, xkb1 (S15.10)
+    reg signed [26:0]   xkb_n[3:0][1:0][1:0];   // xkb0, xkb1 (S15.10)
    
     // 用於計算的中間變數
     reg        [7:0]    operand;   // 用於 Specify S0~S3
     reg signed [19:0]   tmp[31:0];       // 計算媒介。定義加法中的每一項為何
     reg signed [22:0]   Rs[7:0]; // Rs[0]、Rs[1] 對應第一列的實部與虛部
     reg signed [22:0]   Rs_sqrt2;
-    reg signed [22:0]   y_Rs[7:0];
-    reg signed [22:0]   Squared[7:0];   // 本來是 22:0
-    reg signed [25:0]   A;
+    reg signed [23:0]   y_Rs[7:0];
+    reg signed [25:0]   Squared[7:0];   // 本來是 22:0
+    reg signed [27:0]   A;
     reg signed [7:0]    XKB_n[3:0][1:0];         // XKB_n      (S3.4)
 
 
     // 用於傳遞 xkb_min 的變數
-    reg signed [25:0]  surrogate[3:0][3:0][1:0][1:0];    // (S15.10)
+    reg signed [27:0]  surrogate[3:0][3:0][1:0][1:0];    // (S15.10)
    
     // 用於暫存輸出資料的變數。之後優化可以只存 hard bit 而不用存 soft bit'
     // 因為要暫存 16*8 筆資料，所以 EN_LLR_pool 需要 16 個
     // 當某一 EN_LLR_pool[idx]=1 ，則以idx為起點往上，含自己共8個 LLR_pool 都要更新數據
     // 這個 idx 就是 write_pter
-    reg                EN_LLR_pool[15:0];
+    // (OLD)reg                EN_LLR_pool[15:0];
+    reg                EN_LLR_pool[17:0];
     // 只存 hard bit 的話：
     // reg signed         LLR_pool_soft[127:0];
-    reg signed [7:0]   LLR_pool[127:0];     // 用於儲存 llr 結果，需要 16*8 個暫存 reg
-    reg        [6:0]   read_pter;           // read_pter 需要詳細指出哪個，所以需要 16*8=128 (7bit) 的精細度
-    reg        [3:0]   write_pter;          // write_pter 則是一次填8筆
+    // (OLD)reg signed [7:0]   LLR_pool[127:0];     // 用於儲存 llr 結果，需要 16*8 個暫存 reg
+    reg signed [7:0]   LLR_pool[143:0];     // 用於儲存 llr 結果，需要 17*8 個暫存 reg
+    // (OLD)reg        [6:0]   read_pter;           // read_pter 需要詳細指出哪個，所以需要 16*8=128 (7bit) 的精細度
+    // (OLD)reg        [3:0]   write_pter;          // write_pter 則是一次填8筆
+    reg        [7:0]   read_pter;
+    reg        [4:0]   write_pter;
     wire               Not_Activate;
 
 
     // 只有兩狀況兩指針會相等。第一是一開始。當過了64cyc後，寫指針會移動到1，此時就valid
     // 第二是當寫指針趕上讀指針。這代表寫的比讀的快，便產生覆寫。此時其實是不該發生的錯誤
-    assign o_rd_vld     = ( read_pter[6-:4]==write_pter )?  0 : 1;
+    // (OLD)assign o_rd_vld     = ( read_pter[6-:4]==write_pter )?  0 : 1;
+    assign o_rd_vld     = ( read_pter[7-:5]==write_pter )?  0 : 1;
     assign o_llr        = LLR_pool[read_pter];
     assign o_hard_bit   = LLR_pool[read_pter][7];
     assign Not_Activate = ( Ccnt==7'd0 )&(~i_trig);
@@ -136,7 +126,6 @@ module ml_demodulator(
 
 
     integer i, j;
-    real D0, D1, D2, D3;
     always @( * ) begin
     // always@( i_trig, i_y_hat, i_r, Ccnt ) begin
         // 新的設計64cyc完成一個input，故一個cyc就要算完 A0~S3, A4~A7 ...
@@ -152,7 +141,7 @@ module ml_demodulator(
                 tmp[28] = r_34[0];
                 tmp[31] = r_44;
             end
-            default: begin //1'b1 如果 S4_虛部是負的
+            1'b1: begin // 如果 S4_虛部是負的
                 tmp[11] = r_14[1];
                 tmp[12] = -r_14[0];
                 tmp[21] = r_24[1];
@@ -161,6 +150,7 @@ module ml_demodulator(
                 tmp[28] = -r_34[0];
                 tmp[31] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[6] ) // S4_實部
             1'b0: begin // 如果 S4_實部是正的
@@ -172,7 +162,7 @@ module ml_demodulator(
                 tmp[29] = r_34[1];
                 tmp[30] = r_44;
             end
-            default: begin //1'b1 如果 S4_實部是負的
+            1'b1: begin // 如果 S4_實部是負的
                 tmp[10] = -r_14[0];
                 tmp[13] = -r_14[1];
                 tmp[20] = -r_24[0];
@@ -181,6 +171,7 @@ module ml_demodulator(
                 tmp[29] = -r_34[1];
                 tmp[30] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[5] ) // S3_虛部
             1'b0: begin // 如果 S3_虛部是正的
@@ -190,13 +181,14 @@ module ml_demodulator(
                tmp[18]  = r_23[0];
                tmp[25]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[7]   = r_13[1];
                tmp[8]   = -r_13[0];
                tmp[17]  = r_23[1];
                tmp[18]  = -r_23[0];
                tmp[25]  = -r_33;
             end
+            default: begin end
         endcase
         case ( operand[4] ) // S3_實部
             1'b0: begin // 如果 S3_實部是正的
@@ -206,13 +198,14 @@ module ml_demodulator(
                tmp[19]  = r_23[1];
                tmp[24]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[6]   = -r_13[0];
                tmp[9]   = -r_13[1];
                tmp[16]  = -r_23[0];
                tmp[19]  = -r_23[1];
                tmp[24]  = -r_33;
             end
+            default: begin end
         endcase
 
 
@@ -222,11 +215,12 @@ module ml_demodulator(
                tmp[4]   = r_12[0];
                tmp[15]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[3]   = r_12[1];
                tmp[4]   = -r_12[0];
                tmp[15]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[2] ) // S2_實部
             1'b0: begin // 如果 S2_實部是正的
@@ -234,21 +228,24 @@ module ml_demodulator(
                tmp[5]   = r_12[1];
                tmp[14]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[2]   = -r_12[0];
                tmp[5]   = -r_12[1];
                tmp[14]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[1] ) // S1_虛部
             // 如果 S1_虛部是正的
-            1'b0:    tmp[1] =  r_11;
-            default: tmp[1] = -r_11; //1/b1
+            1'b0: tmp[1]    =  r_11;
+            1'b1: tmp[1]    = -r_11;
+            default: begin end
         endcase
         case ( operand[0] ) // S1_實部
             // 如果 S1_實部是正的
-            1'b0:    tmp[0] =  r_11;
-            default: tmp[0] = -r_11; //1/b1
+            1'b0: tmp[0]    =  r_11;
+            1'b1: tmp[0]    = -r_11;
+            default: begin end
         endcase
 
 
@@ -256,8 +253,6 @@ module ml_demodulator(
         // 7個 S3.16 數值計算起來最大是 S6.16
         // reg signed [22:0] Rs[7:0]; // Rs[0]、Rs[1] 對應第一列的實部與虛部
         Rs[0] = ( (tmp[0]  + tmp[2])  + (tmp[3]  + tmp[6]) )  + ( (tmp[7] + tmp[10]) + tmp[11] );
-        // if (debug2) $display("tmp[0]=%d,\ntmp[2]=%d,\ntmp[3]=%d,\ntmp[6]=%d,\ntmp[7]=%d,\ntmp[10]=%d,\ntmp[11]=%d",
-        //                 tmp[0], tmp[2], tmp[3], tmp[6], tmp[7], tmp[10], tmp[11]);
         Rs[1] = ( (tmp[1]  + tmp[4])  + (tmp[5]  + tmp[8]) )  + ( (tmp[9] + tmp[12]) + tmp[13] );
         Rs[2] =   (tmp[14] + tmp[16]) + (tmp[17] + tmp[20])   + tmp[21];
         Rs[3] =   (tmp[15] + tmp[18]) + (tmp[19] + tmp[22])   + tmp[23];
@@ -266,69 +261,29 @@ module ml_demodulator(
         Rs[6] = tmp[30];
         Rs[7] = tmp[31];
 
-        // if (debug2) begin
-        //     $write("%c[7;33m",27);
-        //     $display("\nNow counter= %d", Ccnt[5:0] );
-        //     $display("First Rs is calculated");
-        //     $write("%c[0m",27);
-        //     for (i=0; i<8; i=i+1) begin
-        //         D0      = $signed(Rs[i]);
-        //         $display("Rs[%d]=%f", i, D0/(2**16)  );
-        //     end
-        // end
 
         // 經測試，中間媒介只要一個就好
-        // 取 {S6.8} * {S0.8} = {S6.16} ( 23 bits )
+        // 取 {S6.8} * {1.8} = {S7.16} ( 24 bits )
         // reg signed [22:0] Rs_sqrt2;
-        // reg signed [22:0] y_Rs[7:0]; of the form S6.16
-        // if (debug2) begin
-        //     $write("%c[7;33m",27);
-        //     $display("\nNow counter= %d", Ccnt[5:0] );
-        //     $display("First Rs_sqrt2 is calculated");
-        //     $write("%c[0m",27);
-        // end
+        // reg signed [23:0] y_Rs[7:0]; of the form S7.16
         for (i=0 ; i<4 ; i=i+1 ) begin
             for (j=0; j<2 ; j=j+1) begin
                 Rs_sqrt2    = $signed( Rs[2*i+j][ 22 -: 15 ] ) * 9'sb01011_0101;
                 y_Rs[2*i+j] = y[i][j] - Rs_sqrt2;
-
-                if (debug2) begin
-                    // D0      = $signed( Rs[2*i+j][ 22 -: 15 ] );
-                    // D1      = $signed( Rs_sqrt2 );
-                    // $display("Rs[%d]=%f", 2*i+j, D0/(2**8)  );
-                    // $display("Rs_sqrt2=%f", D1/(2**16) );
-                    // D0      = $signed( y[i][j] );
-                    // $display("y[%d][%d]=%f", i, j, D0/(2**16) );
-                    // D0      = $signed( y_Rs[2*i+j] );
-                    // $display("y_Rs[%d]=%f", 2*i+j, D0/(2**16) );
-                    // $display("y_Rs[%d]=%b", 2*i+j ,y_Rs[2*i+j]);
-                end
             end
         end
 
-        // [22:0]y_Rs[7:0] 的形式是  S6.16
-        // S6.16 * S6.16 = S12.32 ，太長，故取 S6.5 * S6.5= S12.10
-        // reg signed [22:0]   Squared[7:0];   // 本來是 22:0
+        // [23:0]y_Rs[7:0] 的形式是  S7.16
+        // S7.16 * S7.16 = S14.32 ，太長，故取 S7.5 * S7.5= S14.10
+        // reg signed [25:0]   Squared[7:0];   // 本來是 22:0
         for (i=0 ; i<8 ; i=i+1) begin
-            Squared[i] = $signed( y_Rs[i][22 -: 12] ) * $signed ( y_Rs[i][22 -: 12] ) ;
+            Squared[i] = $signed( y_Rs[i][23 -: 13] ) * $signed ( y_Rs[i][23 -: 13] ) ;
         end
-        // 8個 S12.10 相加最多是 S15.10
-        // reg signed [25:0] A; of the form S15.10
+        // 8個 S14.10 相加最多是 S17.10
+        // reg signed [27:0] A; of the form S14.10
         A = ( (Squared[0] + Squared[1]) + (Squared[2] + Squared[3]) ) +
             ( (Squared[4] + Squared[5]) + (Squared[6] + Squared[7]) ) ;
 
-        // if (debug2) begin
-        //     $write("%c[7;33m",27);
-        //     $display("\nNow counter= %d", Ccnt[5:0] );
-        //     $display("First Squareds and A are calculated");
-        //     $write("%c[0m",27);
-        //     for (i=0 ; i<8 ; i=i+1) begin
-        //         D0          = $signed(Squared[i]);
-        //         $display("Squared[%d]=%f", i, D0/(2**10) );
-        //     end
-        //     D0              = $signed( A );
-        //     $display("A=%f", D0/(2**10) );
-        // end
 
         // Check Point
         // Check Point
@@ -337,63 +292,23 @@ module ml_demodulator(
         // Check Point
 
         // 計算完A之後讓A跟指定的 xkb0、xkb1 比較
-        // reg signed [25:0] surrogate[3:0][3:0][1:0][1:0]; // (S15.10)
+        // reg signed [27:0] surrogate[3:0][3:0][1:0][1:0]; // (S15.10)
         // { Ccnt[5:0], 2'b00 }; // S0
-        if (debug2) begin
-            $write("%c[7;33m",27);
-            $display("\nNow counter= %d", Ccnt[5:0] );
-            $display("First S is calculated");
-            D0              = $signed(A);
-            $display("In this round, A=%b", A );
-            $display("In this round, A=%f", A/(2**10) );
-            $write("%c[0m",27);
-        end
         for (i=0 ; i<4 ; i=i+1 ) begin
             for (j=0 ; j<2 ; j=j+1 ) begin
                 case ( operand[2*i+j] ) // 2*0+0對應[0][0]；2*0+1對應[0][1]
                     1'b0: begin
                         surrogate[0][i][j][0] = ( A < xkb[i][j][0] )? A : xkb[i][j][0];
                         surrogate[0][i][j][1] = xkb[i][j][1];
-                        if (debug2) begin
-                            D0              = $signed( xkb[i][j][0] );
-                            D1              = $signed( surrogate[0][i][j][0] );
-                            $display("surrogate[0][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                            D0              = $signed( surrogate[0][i][j][1] );
-                            $display("surrogate[0][%d][%d][1] <= xkb[%d][%d][1]  (%f)", i, j, i, j, D0/(2**10)  );
-                        end
                     end
-                    default: begin //1'b1
+                    1'b1: begin
                         surrogate[0][i][j][0] = xkb[i][j][0];
                         surrogate[0][i][j][1] = ( A < xkb[i][j][1] )? A : xkb[i][j][1];
-                        if (debug2) begin
-                            D0              = $signed( surrogate[0][i][j][0] );
-                            $display("surrogate[0][%d][%d][0] <= xkb[%d][%d][0]  (%f)", i, j, i, j, D0/(2**10)  );
-                            D0              = $signed( xkb[i][j][1] );
-                            D1              = $signed( surrogate[0][i][j][1] );
-                            $display("surrogate[0][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                        end
                     end
+                    default: begin end
                 endcase
             end
         end
-        // if (debug) begin
-        //     $write("%c[7;33m",27);
-        //     $display("\nNow counter= %d", Ccnt[5:0] );
-        //     $display("First Second S is calculated");
-        //     $write("%c[0m",27);
-        //     D0              = $signed(A);
-        //     $display("In this round, A=%f", D0/(2**10) );
-        //     for (i=0; i<4; i=i+1) begin
-		//         for (j=0 ; j<2; j=j+1 ) begin
-        //             D0      = $signed( xkb[i][j][0] );
-        //             D1      = $signed( surrogate[0][i][j][0] );
-        //             $display("surrogate[0][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //             D0      = $signed( xkb[i][j][1] );
-        //             D1      = $signed( surrogate[0][i][j][1] );
-        //             $display("surrogate[0][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //         end
-        //     end
-        // end
 
         // ==================================================== //
         // ==================================================== //
@@ -404,7 +319,7 @@ module ml_demodulator(
 
         // ==================================================== //
         // ==================================================== //
-        // ==================== 以上計算A1 ==================== //
+        // ==================== 以下計算A1 ==================== //
         // ==================================================== //
         // ==================================================== //
         operand     = { Ccnt[5:0], 2'b01 }; // A1
@@ -418,7 +333,7 @@ module ml_demodulator(
                 tmp[28] = r_34[0];
                 tmp[31] = r_44;
             end
-            default: begin //1'b1 如果 S4_虛部是負的
+            1'b1: begin // 如果 S4_虛部是負的
                 tmp[11] = r_14[1];
                 tmp[12] = -r_14[0];
                 tmp[21] = r_24[1];
@@ -427,6 +342,7 @@ module ml_demodulator(
                 tmp[28] = -r_34[0];
                 tmp[31] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[6] ) // S4_實部
             1'b0: begin // 如果 S4_實部是正的
@@ -438,7 +354,7 @@ module ml_demodulator(
                 tmp[29] = r_34[1];
                 tmp[30] = r_44;
             end
-            default: begin //1'b1 如果 S4_實部是負的
+            1'b1: begin // 如果 S4_實部是負的
                 tmp[10] = -r_14[0];
                 tmp[13] = -r_14[1];
                 tmp[20] = -r_24[0];
@@ -447,6 +363,7 @@ module ml_demodulator(
                 tmp[29] = -r_34[1];
                 tmp[30] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[5] ) // S3_虛部
             1'b0: begin // 如果 S3_虛部是正的
@@ -456,13 +373,14 @@ module ml_demodulator(
                tmp[18]  = r_23[0];
                tmp[25]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[7]   = r_13[1];
                tmp[8]   = -r_13[0];
                tmp[17]  = r_23[1];
                tmp[18]  = -r_23[0];
                tmp[25]  = -r_33;
             end
+            default: begin end
         endcase
         case ( operand[4] ) // S3_實部
             1'b0: begin // 如果 S3_實部是正的
@@ -472,13 +390,14 @@ module ml_demodulator(
                tmp[19]  = r_23[1];
                tmp[24]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[6]   = -r_13[0];
                tmp[9]   = -r_13[1];
                tmp[16]  = -r_23[0];
                tmp[19]  = -r_23[1];
                tmp[24]  = -r_33;
             end
+            default: begin end
         endcase
 
 
@@ -488,11 +407,12 @@ module ml_demodulator(
                tmp[4]   = r_12[0];
                tmp[15]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[3]   = r_12[1];
                tmp[4]   = -r_12[0];
                tmp[15]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[2] ) // S2_實部
             1'b0: begin // 如果 S2_實部是正的
@@ -500,21 +420,24 @@ module ml_demodulator(
                tmp[5]   = r_12[1];
                tmp[14]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[2]   = -r_12[0];
                tmp[5]   = -r_12[1];
                tmp[14]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[1] ) // S1_虛部
             // 如果 S1_虛部是正的
-            1'b0:    tmp[1] =  r_11;
-            default: tmp[1] = -r_11;
+            1'b0: tmp[1]    =  r_11;
+            1'b1: tmp[1]    = -r_11;
+            default: begin end
         endcase
         case ( operand[0] ) // S1_實部
             // 如果 S1_實部是正的
-            1'b0:    tmp[0] =  r_11;
-            default: tmp[0] = -r_11;
+            1'b0: tmp[0]    =  r_11;
+            1'b1: tmp[0]    = -r_11;
+            default: begin end
         endcase
 
 
@@ -538,65 +461,28 @@ module ml_demodulator(
         end
 
         for (i=0 ; i<8 ; i=i+1) begin
-            Squared[i] = $signed( y_Rs[i][22 -: 12] ) * $signed ( y_Rs[i][22 -: 12] ) ;
+            Squared[i] = $signed( y_Rs[i][23 -: 13] ) * $signed ( y_Rs[i][23 -: 13] ) ;
         end
 
         A = ( (Squared[0] + Squared[1]) + (Squared[2] + Squared[3]) ) +
             ( (Squared[4] + Squared[5]) + (Squared[6] + Squared[7]) ) ;
-           
-        if (debug) begin
-            $write("%c[7;34m",27);
-            $display("Second S is calculated");
-            D0              = $signed(A);
-            $display("In this round, A=%f", A/(2**10) );
-            $write("%c[0m",27);
-        end
+
         for (i=0 ; i<4 ; i=i+1 ) begin
             for (j=0 ; j<2 ; j=j+1 ) begin
                 case ( operand[2*i+j] ) // 2*0+0對應[0][0]；2*0+1對應[0][1]
                     1'b0: begin
                         surrogate[1][i][j][0] = ( A < surrogate[0][i][j][0] )? A : surrogate[0][i][j][0];
                         surrogate[1][i][j][1] = surrogate[0][i][j][1];
-                        if (debug) begin
-                            D0              = $signed( surrogate[0][i][j][0] );
-                            D1              = $signed( surrogate[1][i][j][0] );
-                            $display("surrogate[1][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                            D0              = $signed( surrogate[1][i][j][1] );
-                            $display("surrogate[1][%d][%d][1] <= surrogate[0][%d][%d][1]  (%f)", i, j, i, j, D0/(2**10)  );
-                        end
                     end
-                    default: begin //1'b1
+                    1'b1: begin
                         surrogate[1][i][j][0] = surrogate[0][i][j][0];
                         surrogate[1][i][j][1] = ( A < surrogate[0][i][j][1] )? A : surrogate[0][i][j][1];
-                        if (debug) begin
-                            D0              = $signed( surrogate[1][i][j][0] );
-                            $display("surrogate[1][%d][%d][0] <= surrogate[0][%d][%d][0]  (%f)", i, j, i, j, D0/(2**10)  );
-                            D0              = $signed( surrogate[0][i][j][1] );
-                            D1              = $signed( surrogate[1][i][j][1] );
-                            $display("surrogate[1][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                        end
                     end
+                    default: begin end
                 endcase
             end
         end
 
-        // if (debug) begin
-        //     $write("%c[7;34m",27);
-        //     $display("Second S is calculated");
-        //     $write("%c[0m",27);
-        //     D0              = $signed(A);
-        //     $display("In this round, A=%f", A/(2**10) );
-        //     for (i=0; i<4; i=i+1) begin
-		//         for (j=0 ; j<2; j=j+1 ) begin
-        //             D0      = $signed( surrogate[0][i][j][0] );
-        //             D1      = $signed( surrogate[1][i][j][0] );
-        //             $display("surrogate[1][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //             D0      = $signed( surrogate[0][i][j][1] );
-        //             D0      = $signed( surrogate[1][i][j][1] );
-        //             $display("surrogate[1][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //         end
-        //     end
-        // end
         // ==================================================== //
         // ==================================================== //
         // =================== 以上計算完A1 =================== //
@@ -606,7 +492,7 @@ module ml_demodulator(
 
         // ==================================================== //
         // ==================================================== //
-        // ==================== 以上計算A2 ==================== //
+        // ==================== 以下計算A2 ==================== //
         // ==================================================== //
         // ==================================================== //
         operand     = { Ccnt[5:0], 2'b10 }; // A2
@@ -620,7 +506,7 @@ module ml_demodulator(
                 tmp[28] = r_34[0];
                 tmp[31] = r_44;
             end
-            default: begin //1'b1 如果 S4_虛部是負的
+            1'b1: begin // 如果 S4_虛部是負的
                 tmp[11] = r_14[1];
                 tmp[12] = -r_14[0];
                 tmp[21] = r_24[1];
@@ -629,6 +515,7 @@ module ml_demodulator(
                 tmp[28] = -r_34[0];
                 tmp[31] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[6] ) // S4_實部
             1'b0: begin // 如果 S4_實部是正的
@@ -640,7 +527,7 @@ module ml_demodulator(
                 tmp[29] = r_34[1];
                 tmp[30] = r_44;
             end
-            default: begin //1'b1 如果 S4_實部是負的
+            1'b1: begin // 如果 S4_實部是負的
                 tmp[10] = -r_14[0];
                 tmp[13] = -r_14[1];
                 tmp[20] = -r_24[0];
@@ -649,6 +536,7 @@ module ml_demodulator(
                 tmp[29] = -r_34[1];
                 tmp[30] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[5] ) // S3_虛部
             1'b0: begin // 如果 S3_虛部是正的
@@ -658,13 +546,14 @@ module ml_demodulator(
                tmp[18]  = r_23[0];
                tmp[25]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[7]   = r_13[1];
                tmp[8]   = -r_13[0];
                tmp[17]  = r_23[1];
                tmp[18]  = -r_23[0];
                tmp[25]  = -r_33;
             end
+            default: begin end
         endcase
         case ( operand[4] ) // S3_實部
             1'b0: begin // 如果 S3_實部是正的
@@ -674,13 +563,14 @@ module ml_demodulator(
                tmp[19]  = r_23[1];
                tmp[24]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[6]   = -r_13[0];
                tmp[9]   = -r_13[1];
                tmp[16]  = -r_23[0];
                tmp[19]  = -r_23[1];
                tmp[24]  = -r_33;
             end
+            default: begin end
         endcase
 
 
@@ -690,11 +580,12 @@ module ml_demodulator(
                tmp[4]   = r_12[0];
                tmp[15]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[3]   = r_12[1];
                tmp[4]   = -r_12[0];
                tmp[15]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[2] ) // S2_實部
             1'b0: begin // 如果 S2_實部是正的
@@ -702,21 +593,24 @@ module ml_demodulator(
                tmp[5]   = r_12[1];
                tmp[14]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[2]   = -r_12[0];
                tmp[5]   = -r_12[1];
                tmp[14]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[1] ) // S1_虛部
             // 如果 S1_虛部是正的
-            1'b0:    tmp[1] =  r_11;
-            default: tmp[1] = -r_11;
+            1'b0: tmp[1]    =  r_11;
+            1'b1: tmp[1]    = -r_11;
+            default: begin end
         endcase
         case ( operand[0] ) // S1_實部
             // 如果 S1_實部是正的
-            1'b0:    tmp[0] =  r_11;
-            default: tmp[0] = -r_11;
+            1'b0: tmp[0]    =  r_11;
+            1'b1: tmp[0]    = -r_11;
+            default: begin end
         endcase
 
 
@@ -739,64 +633,27 @@ module ml_demodulator(
             end
         end
         for (i=0 ; i<8 ; i=i+1) begin
-            Squared[i] = $signed( y_Rs[i][22 -: 12] ) * $signed ( y_Rs[i][22 -: 12] ) ;
+            Squared[i] = $signed( y_Rs[i][23 -: 13] ) * $signed ( y_Rs[i][23 -: 13] ) ;
         end
         A = ( (Squared[0] + Squared[1]) + (Squared[2] + Squared[3]) ) +
             ( (Squared[4] + Squared[5]) + (Squared[6] + Squared[7]) ) ;
            
-        if (debug) begin
-            $write("%c[7;36m",27);
-            $display("Third S is calculated");
-            D0              = $signed(A);
-            $display("In this round, A=%f", A/(2**10) );
-            $write("%c[0m",27);
-        end
         for (i=0 ; i<4 ; i=i+1 ) begin
             for (j=0 ; j<2 ; j=j+1 ) begin
                 case ( operand[2*i+j] ) // 2*0+0對應[0][0]；2*0+1對應[0][1]
                     1'b0: begin
                         surrogate[2][i][j][0] = ( A < surrogate[1][i][j][0] )? A : surrogate[1][i][j][0];
                         surrogate[2][i][j][1] = surrogate[1][i][j][1];
-                        if (debug) begin
-                            D0              = $signed( surrogate[1][i][j][0] );
-                            D1              = $signed( surrogate[2][i][j][0] );
-                            $display("surrogate[2][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                            D0              = $signed( surrogate[2][i][j][1] );
-                            $display("surrogate[2][%d][%d][1] <= surrogate[1][%d][%d][1]  (%f)", i, j, i, j, D0/(2**10)  );
-                        end
                     end
-                    default: begin //1'b1
+                    1'b1: begin
                         surrogate[2][i][j][0] = surrogate[1][i][j][0];
                         surrogate[2][i][j][1] = ( A < surrogate[1][i][j][1] )? A : surrogate[1][i][j][1];
-                        if (debug) begin
-                            D0              = $signed( surrogate[2][i][j][0] );
-                            $display("surrogate[2][%d][%d][0] <= surrogate[1][%d][%d][0]  (%f)", i, j, i, j, D0/(2**10)  );
-                            D0              = $signed( surrogate[1][i][j][1] );
-                            D1              = $signed( surrogate[2][i][j][1] );
-                            $display("surrogate[2][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                        end
                     end
+                    default: begin end
                 endcase
             end
         end
 
-        // if (debug) begin
-        //     $write("%c[7;36m",27);
-        //     $display("Third S is calculated");
-        //     $write("%c[0m",27);
-        //     D0              = $signed(A);
-        //     $display("In this round, A=%f", A/(2**10) );
-        //     for (i=0; i<4; i=i+1) begin
-		//         for (j=0 ; j<2; j=j+1 ) begin
-        //             D0      = $signed( surrogate[1][i][j][0] );
-        //             D1      = $signed( surrogate[2][i][j][0] );
-        //             $display("surrogate[2][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //             D0      = $signed( surrogate[1][i][j][1] );
-        //             D1      = $signed( surrogate[2][i][j][1] );
-        //             $display("surrogate[2][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //         end
-        //     end
-        // end
         // ==================================================== //
         // ==================================================== //
         // =================== 以上計算完A2 =================== //
@@ -806,7 +663,7 @@ module ml_demodulator(
 
         // ==================================================== //
         // ==================================================== //
-        // ==================== 以上計算A3 ==================== //
+        // ==================== 以下計算A3 ==================== //
         // ==================================================== //
         // ==================================================== //
         operand     = { Ccnt[5:0], 2'b11 }; // A3
@@ -820,7 +677,7 @@ module ml_demodulator(
                 tmp[28] = r_34[0];
                 tmp[31] = r_44;
             end
-            default: begin //1'b1 如果 S4_虛部是負的
+            1'b1: begin // 如果 S4_虛部是負的
                 tmp[11] = r_14[1];
                 tmp[12] = -r_14[0];
                 tmp[21] = r_24[1];
@@ -829,6 +686,7 @@ module ml_demodulator(
                 tmp[28] = -r_34[0];
                 tmp[31] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[6] ) // S4_實部
             1'b0: begin // 如果 S4_實部是正的
@@ -840,7 +698,7 @@ module ml_demodulator(
                 tmp[29] = r_34[1];
                 tmp[30] = r_44;
             end
-           default: begin //1'b1 如果 S4_實部是負的
+            1'b1: begin // 如果 S4_實部是負的
                 tmp[10] = -r_14[0];
                 tmp[13] = -r_14[1];
                 tmp[20] = -r_24[0];
@@ -849,6 +707,7 @@ module ml_demodulator(
                 tmp[29] = -r_34[1];
                 tmp[30] = -r_44;
             end
+            default: begin end
         endcase
         case ( operand[5] ) // S3_虛部
             1'b0: begin // 如果 S3_虛部是正的
@@ -858,13 +717,14 @@ module ml_demodulator(
                tmp[18]  = r_23[0];
                tmp[25]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[7]   = r_13[1];
                tmp[8]   = -r_13[0];
                tmp[17]  = r_23[1];
                tmp[18]  = -r_23[0];
                tmp[25]  = -r_33;
             end
+            default: begin end
         endcase
         case ( operand[4] ) // S3_實部
             1'b0: begin // 如果 S3_實部是正的
@@ -874,13 +734,14 @@ module ml_demodulator(
                tmp[19]  = r_23[1];
                tmp[24]  = r_33;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[6]   = -r_13[0];
                tmp[9]   = -r_13[1];
                tmp[16]  = -r_23[0];
                tmp[19]  = -r_23[1];
                tmp[24]  = -r_33;
             end
+            default: begin end
         endcase
 
 
@@ -890,11 +751,12 @@ module ml_demodulator(
                tmp[4]   = r_12[0];
                tmp[15]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[3]   = r_12[1];
                tmp[4]   = -r_12[0];
                tmp[15]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[2] ) // S2_實部
             1'b0: begin // 如果 S2_實部是正的
@@ -902,21 +764,24 @@ module ml_demodulator(
                tmp[5]   = r_12[1];
                tmp[14]  = r_22;
             end
-            default: begin //1'b1
+            1'b1: begin
                tmp[2]   = -r_12[0];
                tmp[5]   = -r_12[1];
                tmp[14]  = -r_22;
             end
+            default: begin end
         endcase
         case ( operand[1] ) // S1_虛部
             // 如果 S1_虛部是正的
-            1'b0:    tmp[1] =  r_11;
-            default: tmp[1] = -r_11;
+            1'b0: tmp[1]    =  r_11;
+            1'b1: tmp[1]    = -r_11;
+            default: begin end
         endcase
         case ( operand[0] ) // S1_實部
             // 如果 S1_實部是正的
-            1'b0:    tmp[0] =  r_11;
-            default: tmp[0] = -r_11;
+            1'b0: tmp[0]    =  r_11;
+            1'b1: tmp[0]    = -r_11;
+            default: begin end
         endcase
 
         Rs[0] = ( (tmp[0]  + tmp[2])  + (tmp[3]  + tmp[6]) )  + ( (tmp[7] + tmp[10]) + tmp[11] );
@@ -936,19 +801,11 @@ module ml_demodulator(
         end
 
         for (i=0 ; i<8 ; i=i+1) begin
-            Squared[i] = $signed( y_Rs[i][22 -: 12] ) * $signed ( y_Rs[i][22 -: 12] ) ;
+            Squared[i] = $signed( y_Rs[i][23 -: 13] ) * $signed ( y_Rs[i][23 -: 13] ) ;
         end
 
         A = ( (Squared[0] + Squared[1]) + (Squared[2] + Squared[3]) ) +
             ( (Squared[4] + Squared[5]) + (Squared[6] + Squared[7]) ) ;
-           
-        if (debug2) begin
-            $write("%c[7;30m",27);
-            $display("Fourth S is calculated");
-            D0              = $signed(A);
-            $display("In this round, A=%f", A/(2**10) );
-            $write("%c[0m",27);
-        end
 
         for (i=0 ; i<4 ; i=i+1 ) begin
             for (j=0 ; j<2 ; j=j+1 ) begin
@@ -956,46 +813,16 @@ module ml_demodulator(
                     1'b0: begin
                         surrogate[3][i][j][0] = ( A < surrogate[2][i][j][0] )? A : surrogate[2][i][j][0];
                         surrogate[3][i][j][1] = surrogate[2][i][j][1];
-                        if (debug2) begin
-                            D0              = $signed( surrogate[2][i][j][0] );
-                            D1              = $signed( surrogate[3][i][j][0] );
-                            $display("surrogate[3][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                            D0              = $signed( surrogate[3][i][j][1] );
-                            $display("surrogate[3][%d][%d][1] <= surrogate[2][%d][%d][1]  (%f)", i, j, i, j, D0/(2**10)  );
-                        end
                     end
-                    default: begin //1'b1
+                    1'b1: begin
                         surrogate[3][i][j][0] = surrogate[2][i][j][0];
                         surrogate[3][i][j][1] = ( A < surrogate[2][i][j][1] )? A : surrogate[2][i][j][1];
-                        if (debug2) begin
-                            D0              = $signed( surrogate[3][i][j][0] );
-                            $display("surrogate[3][%d][%d][0] <= surrogate[2][%d][%d][0]  (%f)", i, j, i, j, D0/(2**10)  );
-                            D0              = $signed( surrogate[2][i][j][1] );
-                            D1              = $signed( surrogate[3][i][j][1] );
-                            $display("surrogate[3][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-                        end
                     end
+                    default: begin end
                 endcase
             end
         end
 
-        // if (debug) begin
-        //     $write("%c[7;30m",27);
-        //     $display("Fourth S is calculated");
-        //     $write("%c[0m",27);
-        //     D0              = $signed(A);
-        //     $display("In this round, A=%f", A/(2**10) );
-        //     for (i=0; i<4; i=i+1) begin
-		//         for (j=0 ; j<2; j=j+1 ) begin
-        //             D0      = $signed( surrogate[2][i][j][0] );
-        //             D1      = $signed( surrogate[3][i][j][0] );
-        //             $display("surrogate[3][%d][%d][0] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //             D0      = $signed( surrogate[2][i][j][1] );
-        //             D1      = $signed( surrogate[3][i][j][1] );
-        //             $display("surrogate[3][%d][%d][1] is updated, from %f to %f", i, j, D0/(2**10), D1/(2**10)  );
-        //         end
-        //     end
-        // end
         // ==================================================== //
         // ==================================================== //
         // =================== 以上計算完A3 =================== //
@@ -1015,7 +842,7 @@ module ml_demodulator(
                 XKB_n[i][j]             = 'd0;
             end    
         end
-        for (i=0 ; i<16 ; i=i+1 ) begin
+        for (i=0 ; i<18 ; i=i+1 ) begin
             EN_LLR_pool[i]      = 1'b0;
         end
 
@@ -1023,39 +850,24 @@ module ml_demodulator(
         // 但當 cyc=63 時， surrogate[3] 系列會計算 xkb，而 xkb1_min 與 xkb0_min 會重置
         if ( &Ccnt[5:0] ) begin // cyc=63 時
         // if ( Ccnt == 7'b1_000_000 ) begin // cyc=64 時
-        // reg signed [25:0] surrogate[3:0][3:0][1:0][1:0]; (S15.10)
+        // reg signed [27:0] surrogate[3:0][3:0][1:0][1:0]; (S15.10)
             for (i=0 ; i<4 ; i=i+1 ) begin
                 for (j=0 ; j<2 ; j=j+1 ) begin
                     XKB_n[i][j]         = (surrogate[3][i][j][1] - surrogate[3][i][j][0]) >>> 6 ;
-                    if (debug) begin
-                        D0         = $signed(surrogate[3][i][j][1]);
-                        D1         = $signed(surrogate[3][i][j][0]);
-                        D2         = $signed(XKB_n[i][j]);
-                        $display("surrogate[3][%d][%d][1] - surrogate[3][%d][%d][0] = %f - %f = %f",
-                                i, j, i, j, D0/(2**10), D1/(2**10), D2/(2**4) );
-                        $display("surrogate[3][%d][%d][1] - surrogate[3][%d][%d][0] = %d - %d = %f",
-                                i, j, i, j, surrogate[3][i][j][1], surrogate[3][i][j][0], D2*2**6);
-                    end
+					if (XKB_n[i][j]==0)
+						XKB_n[i][j]		= {7'd0, 1'b1};
                 end
             end
             EN_LLR_pool[write_pter]     = 1'b1;
             for (i=0 ; i<4 ; i=i+1 ) begin
                 for (j=0 ; j<2 ; j=j+1 ) begin
-                    xkb_n[i][j][0] = {1'b0, {25{1'b1}}};
-                    xkb_n[i][j][1] = {1'b0, {25{1'b1}}};
+                    xkb_n[i][j][0] = {1'b0, {26{1'b1}}};
+                    xkb_n[i][j][1] = {1'b0, {26{1'b1}}};
                 end    
             end
         end else begin
             for (i=0 ; i<4 ; i=i+1 ) begin
                 for (j=0 ; j<2 ; j=j+1 ) begin
-                    if (debug3) begin
-                        D0         = $signed(xkb_n[i][j][0]);
-                        D1         = $signed(surrogate[3][i][j][0]);
-                        $display("xkb[%d][%d][0]=%f will be updated to %f next round.", i, j, D0/(2**10), D1/(2**10));
-                        D0         = $signed(xkb_n[i][j][1]);
-                        D1         = $signed(surrogate[3][i][j][1]);
-                        $display("xkb[%d][%d][1]=%f will be updated to %f next round.", i, j, D0/(2**10), D1/(2**10));
-                    end
                     xkb_n[i][j][0] = surrogate[3][i][j][0];
                     xkb_n[i][j][1] = surrogate[3][i][j][1];
                 end    
@@ -1071,12 +883,12 @@ module ml_demodulator(
             // 關於 xkb0_min 與 xkb1_min
             for (i=0 ; i<4 ; i=i+1 ) begin
                 for (j=0 ; j<2 ; j=j+1 ) begin
-                    xkb[i][j][0] = {1'b0, {25{1'b1}}};
-                    xkb[i][j][1] = {1'b0, {25{1'b1}}};
+                    xkb[i][j][0] <= {1'b0, {26{1'b1}}};
+                    xkb[i][j][1] <= {1'b0, {26{1'b1}}};
                 end    
             end
             // 關於 LLR_pool
-            for (i=0; i<128 ; i=i+1 ) begin
+            for (i=0; i<143 ; i=i+1 ) begin
                 LLR_pool[i] <= 'd0;
             end
             write_pter      <= 'd0;
@@ -1109,29 +921,17 @@ module ml_demodulator(
         end else begin
             Ccnt            <= Ncnt;
             working         <= working_n;
-            if (debug2) begin
-                if ( Ccnt != 'd0 ) $display("Success! Ccnt=%b, |Ccnt=%b, i_trig=%b", Ccnt, |Ccnt, i_trig);
-                else              $display("Fail! Ccnt=%b, |Ccnt=%b, i_trig=%b", Ccnt, |Ccnt, i_trig);
-            end
 
             if ( Ccnt != 'd0 ) begin
             // if ( xkb_update ) begin  // 只有在第一個cyc開始，xkb 才可以被更新
                 for (i=0 ; i<4 ; i=i+1 ) begin
                     for (j=0 ; j<2 ; j=j+1 ) begin
-                        if (debug3) begin
-                            D0 = $signed( xkb[i][j][0] );
-                            D1 = $signed( xkb_n[i][j][0] );
-                            $display("xkb[%d][%d][0] is updated from %f to %f", i, j, D0/(2**10), D1/(2**10));
-                            D0 = $signed( xkb[i][j][1] );
-                            D1 = $signed( xkb_n[i][j][1] );
-                            $display("xkb[%d][%d][1] is updated from %f to %f", i, j, D0/(2**10), D1/(2**10));
-                        end
                         xkb[i][j][0]            <= xkb_n[i][j][0];
                         xkb[i][j][1]            <= xkb_n[i][j][1];
                     end    
                 end
             end
-            for (i=0; i<16 ; i=i+1 ) begin
+            for (i=0; i<18 ; i=i+1 ) begin
                 if ( EN_LLR_pool[i] ) begin // 假如 EN_LLR_pool[5]=1，則更新 5,3'd0~5,3'd7 
                     LLR_pool[ { i, 3'd0} ]   <= XKB_n[0][0];
                     LLR_pool[ { i, 3'd1} ]   <= XKB_n[0][1];
@@ -1143,8 +943,14 @@ module ml_demodulator(
                     LLR_pool[ { i, 3'd7} ]   <= XKB_n[3][1];
                 end
             end
-            if (EN_write_pter)  write_pter  <= write_pter + 1;
-            if (EN_read_pter)   read_pter   <= read_pter + 1;
+            if (EN_write_pter) begin
+                // (OLD)write_pter  <= write_pter + 1 ;
+				write_pter  <= (write_pter==5'd17)? 0 : write_pter + 1 ;
+			end
+            if (EN_read_pter) begin
+                read_pter   <= (read_pter==8'd143)? 0 : read_pter + 1; // 143=(17+1)*8
+                // (OLD)read_pter   <= read_pter + 1;
+            end
             if (i_trig) begin
                 y[0][0]     <= i_y_hat[0+:20];
                 y[0][1]     <= i_y_hat[20+:20];
@@ -1177,4 +983,3 @@ module ml_demodulator(
 
    
 endmodule
-
