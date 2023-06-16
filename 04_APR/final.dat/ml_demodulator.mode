@@ -33,12 +33,13 @@ setPathGroupOptions in2out -effortLevel low
 setExtractRCMode  -engine postRoute -total_c_th 0 -relative_c_th 1 -coupling_c_th 0.4 -minNetTermNrToBeInMem 50
 catch {setNanoRouteMode -quiet -drouteUseMinSpacingForBlockage auto}
 catch {setNanoRouteMode -quiet -extractThirdPartyCompatible false}
-catch {setNanoRouteMode -quiet -grouteExpCurrentTimingReport "/tmp/innovus_temp_30497_cad27_d11001_aBShzB/nanoroute_tmp_RUJFNX/.timing_report1.d"}
+catch {setNanoRouteMode -quiet -grouteExpCurrentTimingReport "/tmp/innovus_temp_27513_cad27_d11001_izItYX/nanoroute_tmp_N28aoT/.timing_report1.d"}
 catch {setNanoRouteMode -quiet -grouteExpTdStdDelay 35.200000}
 catch {setNanoRouteMode -quiet -routeAntennaCellName "ANTENNA"}
 catch {setNanoRouteMode -quiet -routeInsertAntennaDiode true}
 catch {setNanoRouteMode -quiet -routeStrictlyHonorNonDefaultRule "false"}
 catch {setNanoRouteMode -quiet -routeTdrEffort 10}
+catch {setNanoRouteMode -quiet -routeWithEco false}
 catch {setNanoRouteMode -quiet -routeWithSiDriven true}
 catch {setNanoRouteMode -quiet -routeWithSiPostRouteFix false}
 catch {setNanoRouteMode -quiet -routeWithTimingDriven true}
